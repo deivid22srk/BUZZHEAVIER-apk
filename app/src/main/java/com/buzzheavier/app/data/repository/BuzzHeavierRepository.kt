@@ -103,7 +103,15 @@ class BuzzHeavierRepository(private val context: Context) {
     }
     
     suspend fun uploadFile(parentId: String, file: File): Response<String> {
-        val requestBody = file.asRequestBody("application/octet-stream".toMediaTypeOrNull())
+        val mediaType = when {
+            file.name.endsWith(".jpg", true) || file.name.endsWith(".jpeg", true) -> "image/jpeg"
+            file.name.endsWith(".png", true) -> "image/png"
+            file.name.endsWith(".pdf", true) -> "application/pdf"
+            file.name.endsWith(".mp4", true) -> "video/mp4"
+            file.name.endsWith(".mp3", true) -> "audio/mpeg"
+            else -> "application/octet-stream"
+        }
+        val requestBody = file.asRequestBody(mediaType.toMediaTypeOrNull())
         return uploadApi.uploadFile(parentId, file.name, requestBody)
     }
 }

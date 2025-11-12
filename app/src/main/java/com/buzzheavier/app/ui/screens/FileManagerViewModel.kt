@@ -74,19 +74,20 @@ class FileManagerViewModel(private val repository: BuzzHeavierRepository) : View
         }
     }
     
-    fun createDirectory(parentDirectoryId: String, name: String, onSuccess: () -> Unit) {
+    fun createDirectory(parentDirectoryId: String, name: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
                 val response = repository.createDirectory(parentDirectoryId, name)
                 if (response.isSuccessful) {
-                    onSuccess()
                     loadDirectory(parentDirectoryId)
+                    onSuccess()
                 } else {
-                    _uiState.value = FileManagerUiState.Error("Erro ao criar pasta: ${response.code()}")
+                    val errorMsg = "Código ${response.code()}: ${response.message()}"
+                    onError(errorMsg)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                _uiState.value = FileManagerUiState.Error(e.message ?: "Erro ao criar pasta")
+                onError(e.message ?: "Erro desconhecido")
             }
         }
     }
@@ -135,10 +136,12 @@ class FileManagerViewModel(private val repository: BuzzHeavierRepository) : View
                     loadDirectory(parentDirectoryId)
                     onSuccess()
                 } else {
-                    onError("Erro ao enviar arquivo")
+                    val errorMsg = "Código ${response.code()}: ${response.message()}"
+                    onError(errorMsg)
                 }
             } catch (e: Exception) {
-                onError(e.message ?: "Erro ao enviar arquivo")
+                e.printStackTrace()
+                onError(e.message ?: "Erro desconhecido")
             }
         }
     }

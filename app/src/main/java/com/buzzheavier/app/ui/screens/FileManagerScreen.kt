@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.buzzheavier.app.data.model.BuzzHeavierItem
+import com.buzzheavier.app.util.getFileName
 import com.buzzheavier.app.util.toReadableFileSize
 import java.io.File
 import java.io.FileOutputStream
@@ -40,6 +41,9 @@ fun FileManagerScreen(
     var showRenameDialog by remember { mutableStateOf<BuzzHeavierItem?>(null) }
     var showDeleteDialog by remember { mutableStateOf<BuzzHeavierItem?>(null) }
     var showMoreMenu by remember { mutableStateOf(false) }
+    var snackbarMessage by remember { mutableStateOf<String?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    var isUploading by remember { mutableStateOf(false) }
     
     LaunchedEffect(directoryId) {
         viewModel.loadDirectory(directoryId)
@@ -51,7 +55,7 @@ fun FileManagerScreen(
         uri?.let {
             try {
                 val inputStream = context.contentResolver.openInputStream(uri)
-                val fileName = uri.lastPathSegment ?: "file_${System.currentTimeMillis()}"
+                val fileName = uri.getFileName(context)
                 val tempFile = File(context.cacheDir, fileName)
                 
                 inputStream?.use { input ->
@@ -61,24 +65,41 @@ fun FileManagerScreen(
                 }
                 
                 currentDirectory?.id?.let { dirId ->
+                    isUploading = true
                     viewModel.uploadFile(
                         parentDirectoryId = dirId,
                         file = tempFile,
                         onSuccess = {
                             tempFile.delete()
+                            isUploading = false
+                            snackbarMessage = "Arquivo enviado com sucesso!"
                         },
                         onError = { error ->
                             tempFile.delete()
+                            isUploading = false
+                            snackbarMessage = "Erro: $error"
                         }
                     )
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                isUploading = false
+                snackbarMessage = "Erro ao processar arquivo: ${e.message}"
             }
         }
     }
     
+    LaunchedEffect(snackbarMessage) {
+        snackbarMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            snackbarMessage = null
+        }
+    }
+    
     Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -134,9 +155,17 @@ fun FileManagerScreen(
                     Icon(Icons.Default.CreateNewFolder, contentDescription = "Nova pasta")
                 }
                 FloatingActionButton(
-                    onClick = { filePickerLauncher.launch("*/*") }
+                    onClick = { filePickerLauncher.launch("*/*") },
+                    containerColor = if (isUploading) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primaryContainer
                 ) {
-                    Icon(Icons.Default.CloudUpload, contentDescription = "Enviar arquivo")
+                    if (isUploading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onSecondary
+                        )
+                    } else {
+                        Icon(Icons.Default.CloudUpload, contentDescription = "Enviar arquivo")
+                    }
                 }
             }
         }
@@ -229,9 +258,17 @@ fun FileManagerScreen(
             onDismiss = { showCreateFolderDialog = false },
             onCreate = { folderName ->
                 currentDirectory?.id?.let { dirId ->
-                    viewModel.createDirectory(dirId, folderName) {
-                        showCreateFolderDialog = false
-                    }
+                    viewModel.createDirectory(
+                        parentDirectoryId = dirId,
+                        name = folderName,
+                        onSuccess = {
+                            showCreateFolderDialog = false
+                            snackbarMessage = "Pasta criada com sucesso!"
+                        },
+                        onError = { error ->
+                            snackbarMessage = "Erro ao criar pasta: $error"
+                        }
+                    )
                 }
             }
         )

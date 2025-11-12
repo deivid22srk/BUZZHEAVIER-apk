@@ -1,5 +1,9 @@
 package com.buzzheavier.app.util
 
+import android.content.ContentResolver
+import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
 import java.text.DecimalFormat
 import kotlin.math.log10
 import kotlin.math.pow
@@ -33,4 +37,27 @@ fun String.isVideoFile(): Boolean {
 fun String.isAudioFile(): Boolean {
     val audioExtensions = setOf("mp3", "wav", "flac", "aac", "ogg", "wma", "m4a")
     return getFileExtension() in audioExtensions
+}
+
+fun Uri.getFileName(context: Context): String {
+    var result: String? = null
+    if (scheme == "content") {
+        val cursor = context.contentResolver.query(this, null, null, null, null)
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val columnIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (columnIndex != -1) {
+                    result = it.getString(columnIndex)
+                }
+            }
+        }
+    }
+    if (result == null) {
+        result = path
+        val cut = result?.lastIndexOf('/')
+        if (cut != -1 && cut != null) {
+            result = result?.substring(cut + 1)
+        }
+    }
+    return result ?: "file_${System.currentTimeMillis()}"
 }
