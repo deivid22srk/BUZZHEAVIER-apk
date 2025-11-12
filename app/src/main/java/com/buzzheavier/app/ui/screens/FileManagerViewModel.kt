@@ -35,7 +35,9 @@ class FileManagerViewModel(private val repository: BuzzHeavierRepository) : View
                     _currentDirectory.value = content
                     
                     val items = mutableListOf<BuzzHeavierItem>()
-                    content.directories.forEach { dir ->
+                    
+                    val directories = content.directories ?: emptyList()
+                    directories.forEach { dir ->
                         items.add(
                             BuzzHeavierItem.Dir(
                                 id = dir.id,
@@ -45,7 +47,9 @@ class FileManagerViewModel(private val repository: BuzzHeavierRepository) : View
                             )
                         )
                     }
-                    content.files.forEach { file ->
+                    
+                    val files = content.files ?: emptyList()
+                    files.forEach { file ->
                         items.add(
                             BuzzHeavierItem.File(
                                 id = file.id,
@@ -64,6 +68,7 @@ class FileManagerViewModel(private val repository: BuzzHeavierRepository) : View
                     _uiState.value = FileManagerUiState.Error("Erro ao carregar diretório")
                 }
             } catch (e: Exception) {
+                e.printStackTrace()
                 _uiState.value = FileManagerUiState.Error(e.message ?: "Erro desconhecido")
             }
         }
@@ -74,10 +79,13 @@ class FileManagerViewModel(private val repository: BuzzHeavierRepository) : View
             try {
                 val response = repository.createDirectory(parentDirectoryId, name)
                 if (response.isSuccessful) {
-                    loadDirectory(parentDirectoryId)
                     onSuccess()
+                    loadDirectory(parentDirectoryId)
+                } else {
+                    _uiState.value = FileManagerUiState.Error("Erro ao criar pasta: ${response.code()}")
                 }
             } catch (e: Exception) {
+                e.printStackTrace()
                 _uiState.value = FileManagerUiState.Error(e.message ?: "Erro ao criar pasta")
             }
         }

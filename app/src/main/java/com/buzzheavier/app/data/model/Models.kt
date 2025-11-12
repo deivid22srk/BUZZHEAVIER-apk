@@ -42,8 +42,8 @@ data class FileItem(
 data class DirectoryContent(
     @SerializedName("id") val id: String,
     @SerializedName("name") val name: String,
-    @SerializedName("directories") val directories: List<Directory> = emptyList(),
-    @SerializedName("files") val files: List<FileItem> = emptyList()
+    @SerializedName("directories") val directories: List<Directory>? = null,
+    @SerializedName("files") val files: List<FileItem>? = null
 )
 
 data class CreateDirectoryRequest(
